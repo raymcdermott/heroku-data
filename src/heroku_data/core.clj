@@ -2,9 +2,7 @@
   (:require [org.httpkit.client :as http])
   (:require [cheshire.core :refer :all]))
 
-
-(defn get-heroku-data [path options]
-
+(defn get-heroku-data [path]
   (let [options {:timeout     30000                         ; ms -- 30 seconds!
                  :oauth-token "20ff0356-ca01-48f6-b8da-d6189a33d61b"
                  :headers     {"Accept: application/vnd.heroku+json; version=3"
@@ -13,30 +11,33 @@
         {:keys [body error] :as resp} @(http/get (str api-url path) options)]
     (if error
       (println "Failed, exception: " error)
-      body)))
+      (parse-string body true))))
 
-(def org-url "/organizations/")
+(def orgs (get-heroku-data org-path))
 
-(def orgs (:name (parse-string (get-heroku-data org-url options) true)))
+(def org-path "/organizations/")
 
-(def json2map [s] (map #(parse-string % true) s))
+(def orgs (get-heroku-data org-path))
 
-(def apps-per-orgs (json2map (map #(get-heroku-data (str org-url % "/apps") options) orgs)))
+(def apps-per-orgs (map #(get-heroku-data (str org-path (:name %) "/apps")) orgs))
 
 ; apply concat to peel away any enclosing sequences
-(def app-names (map #(select-keys % [:name]) (apply concat apps-per-orgs)))
+(def app-names (map #(select-keys % [:name :organization]) (apply concat apps-per-orgs)))
 
-(def env-app-vars (json2map (map #(get-heroku-data (str "/apps/" % "/config-vars") options)
-                                 (map :name app-names))))
+; TODO -- return the app with the vars
+(defn get-app-env-vars [app]
+  (get-heroku-data (str "/apps/" (:name app) "/config-vars")))
+
+(defn env-app-vars [] (map #(get-app-env-vars %) app-names))
 
 (def some-json "{\"MONGOLAB_URI\":\"mongodb://heroku_app22930768_A:KKgliGwPIzbQkMZmWSdsVkFczXcybksX@ds027280-a0.mongolab.com:27280,ds027280-a1.mongolab.com:27280/heroku_app22930768\",\"NEW_RELIC_LICENSE_KEY\":\"7098d10fbf70572dc7da6736964b9b77e49ac164\",\"NEW_RELIC_LOG\":\"stdout\",\"LOADERIO_API_KEY\":\"8ace9ef99a8946bb01c2e40c6f852557\"}")
 
-; add another JSON entry with the app name to the front
-; sed regex style ;-) like s/^{/{name=val/
+
+
+; TODO add another JSON entry with the app name to the front via a fn
 
 ; TODO need to combine the env-vars with the app / org data
 ; TODO ... store it in mongo for further queries
-
 
 
 
