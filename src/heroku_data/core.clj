@@ -2,8 +2,7 @@
   (:require [org.httpkit.client :as http])
   (:require [cheshire.core :refer :all])
   (:require [monger.core :as mg]
-            [monger.conversion :as mco]
-            [monger.collection :as mcl])
+            [monger.collection :as mc])
   (:import org.bson.types.ObjectId))
 
 (assert (not-empty (System/getenv "HEROKU_API_TOKEN")))
@@ -30,14 +29,12 @@
 
 (defn save-to-mongo [configuration-data]
   (let [uri (System/getenv "MONGO_URL")
-        {:keys [conn db]} (mg/connect-via-uri "mongodb://127.0.0.1/monger-test")
-        coll "org-app-env"
-        data (mco/to-db-object configuration-data)]
-    (mcl/insert db coll data)
+        {:keys [conn db]} (mg/connect-via-uri uri)]
+    (mc/insert-and-return db "orgAppEnv" configuration-data)
     (mg/disconnect conn)))
 
-; this gets data for all environments, for all apps for all orgs and saves it to mongoDB
 (defn org-app-env []
+  "Gets config data, for all apps for all orgs and saves it (per app) to mongoDB"
   (let [data (map #(get-app-env-vars %) apps-per-orgs)]
     (map save-to-mongo data)))
 
