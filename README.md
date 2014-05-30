@@ -1,14 +1,11 @@
 # heroku-data
 
-A Clojure library designed to ... well, that part is up to you.
+A Clojure library designed to obtain and save all application configuration data from Heroku and save it to MongoDB
 
 ## Usage
 
-FIXME
+Still working on this part
 
 ## License
 
-Copyright © 2014 FIXME
-
-Distributed under the Eclipse Public License either version 1.0 or (at
-your option) any later version.
+Distributed under the Eclipse Public License either version 1.0 or (at your option) any later version.
