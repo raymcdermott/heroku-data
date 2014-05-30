@@ -1,6 +1,10 @@
 (ns heroku-data.core
   (:require [org.httpkit.client :as http])
-  (:require [cheshire.core :refer :all]))
+  (:require [cheshire.core :refer :all])
+  (:require [monger.core :as mg]
+            [monger.conversion :as mco]
+            [monger.collection :as mcl])
+  (:import org.bson.types.ObjectId))
 
 (assert (not-empty (System/getenv "HEROKU_API_TOKEN")))
 
@@ -22,10 +26,18 @@
 
 (defn get-app-env-vars [app]
   (let [env-vars (get-heroku-data (str "/apps/" (:name app) "/config-vars"))]
-    (vector app env-vars)))
+    (hash-map :app app :env env-vars)))
 
-; this gets all environments, for all apps for all orgs
-(defn org-app-env [] (map #(get-app-env-vars %) apps-per-orgs))
+(defn save-to-mongo [configuration-data]
+  (let [uri (System/getenv "MONGO_URL")
+        {:keys [conn db]} (mg/connect-via-uri "mongodb://127.0.0.1/monger-test")
+        coll "org-app-env"
+        data (mco/to-db-object configuration-data)]
+    (mcl/insert db coll data)
+    (mg/disconnect conn)))
 
-; TODO ... store it in mongo for further queries
+; this gets data for all environments, for all apps for all orgs and saves it to mongoDB
+(defn org-app-env []
+  (let [data (map #(get-app-env-vars %) apps-per-orgs)]
+    (map save-to-mongo data)))
 
