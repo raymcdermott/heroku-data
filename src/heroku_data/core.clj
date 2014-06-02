@@ -18,6 +18,49 @@
       (println "Failed, exception: " error)
       (parse-string body true))))
 
+(defn get-env-vars [app-name]
+  (let [env-vars (get-heroku-data (str "/apps/" app-name "/config-vars"))]
+    (hash-map :app app-name :env env-vars)))
+
+(defn app-differ [app1 app2]
+  (let [diff (s/difference (set app1) (set app2))]
+    (hash-map :apps (str (:name app1) " vs " (:name app2)) :diff diff )))
+
+(defn env-differ [app1 app2]
+  (let [diff (s/difference (set (:env app1)) (set (:env app2)))]
+    (hash-map :apps (str (:app app1) " vs " (:app app2)) :diff diff )))
+
+(defn env-variance [app-to-compare & other-apps]
+  (let [from-app (get-env-vars app-to-compare)
+        comparative-apps (map #(get-env-vars %) other-apps)
+        diff (map #(env-differ % from-app) comparative-apps)]
+    (println app-to-compare " has this environment configuration: ")
+    (println (set (:env from-app)))
+    (println diff)))
+
+(defn get-app [app-name]
+  (get-heroku-data (str "/apps/" app-name)))
+
+(defn app-differ [app1 app2]
+  (let [diff (s/difference (set app1) (set app2))]
+    (hash-map :apps (str (:name app1) " vs " (:name app2)) :diff diff )))
+
+(defn app-variance [app-to-compare & other-apps]
+  (let [from-app (get-app app-to-compare)
+        comparative-apps (map #(get-app %) other-apps)
+        diff (map #(app-differ % from-app) comparative-apps)]
+    (println app-to-compare " has this application configuration: ")
+    (println from-app)
+    (println diff)))
+
+; TODO - find a nice way to filter away common differences
+; dissoc does not work on sets ;-)
+
+; TODO - write a main program to be executed from the command line
+
+
+;---> Scratch pad functions
+
 (defn apps-per-org [organization]
   (get-heroku-data (str "/organizations/" organization "/apps")))
 
@@ -28,10 +71,6 @@
 (defn get-app-env-vars [app]
   (let [env-vars (get-heroku-data (str "/apps/" (:name app) "/config-vars"))]
     (hash-map :app app :env env-vars)))
-
-(defn get-env-vars [app-name]
-  (let [env-vars (get-heroku-data (str "/apps/" app-name "/config-vars"))]
-    (hash-map :app app-name :env env-vars)))
 
 (defn save-to-mongo [configuration-data]
   (let [uri (System/getenv "MONGO_URL")
@@ -58,12 +97,4 @@
   (let [org-apps (set (apps-per-org organization))
         forbidden (set (forbidden-apps org-apps))]
     (s/difference org-apps forbidden)))
-
-(defn env-variance [app-to-compare & other-apps]
-  (let [from-app (get-env-vars app-to-compare)
-        comparative-apps (map #(get-env-vars %) other-apps)
-        from-env (set (:env from-app))
-        sample-env (set (:env (first comparative-apps)))]
-    (pprint (map #(println (str "Comparing " from-app  " to " )
-                   s/difference (set (:env %)) from-env) comparative-apps))))
 
